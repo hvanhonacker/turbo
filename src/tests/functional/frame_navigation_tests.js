@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { getFromLocalStorage, nextBeat, nextEventNamed, nextEventOnTarget, pathname, scrollToSelector, withPathname } from "../helpers/page"
+import { getFromLocalStorage, isScrolledToTop, nextBeat, nextEventNamed, nextEventOnTarget, pathname, scrollToSelector, withPathname } from "../helpers/page"
 
 test("frame navigation with descendant link", async ({ page }) => {
   await page.goto("/src/tests/fixtures/frame_navigation.html")
@@ -41,6 +41,25 @@ test("frame navigation with data-turbo-action", async ({ page }) => {
 
   const titleText = page.locator("h1")
   await expect(titleText).toHaveText("Frame navigation tests")
+})
+
+test("frame navigation with data-turbo-action does not disable scroll handling", async ({ page }) => {
+  await page.goto("/src/tests/fixtures/frame_navigation.html")
+
+  // The promoted Visit renders a frame response, which carries no <head>, so its
+  // tracked element signature can never match the document's. That must not leave
+  // the page with forceReloaded latched.
+  await page.click("#link-to-frame-with-empty-head")
+  await nextEventOnTarget(page, "empty-head", "turbo:frame-load")
+  await nextEventNamed(page, "turbo:load")
+
+  await page.evaluate(() => window.scrollTo(0, 200))
+  expect(await isScrolledToTop(page), "scrolled down").toEqual(false)
+
+  await page.evaluate(() => window.Turbo.visit("/src/tests/fixtures/one.html"))
+  await nextEventNamed(page, "turbo:load")
+
+  expect(await isScrolledToTop(page), "advance visit scrolled to the top").toEqual(true)
 })
 
 test("frame navigation emits fetch-request-error event when offline", async ({ page }) => {
