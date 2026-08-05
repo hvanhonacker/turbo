@@ -22,7 +22,10 @@ export class PageView extends View {
     const renderer = new rendererClass(this.snapshot, snapshot, isPreview, willRender)
 
     if (!renderer.shouldRender) {
-      this.forceReloaded = true
+      // Only latch when a reload will actually follow. View#render already exempts
+      // promoted Visits from a frame navigation (willRender: false) from the
+      // tracked element mismatch reload; they must not lose scroll handling either.
+      if (willRender) this.forceReloaded = true
     } else {
       visit?.changeHistory()
     }
